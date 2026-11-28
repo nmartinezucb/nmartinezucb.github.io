@@ -1,14 +1,22 @@
-// Edit this file to change what shows on the homepage.
+// The homepage reads its links from the Google Sheet "Homepage links"
+// in the "Mr Martinez Web" Drive folder. Edit the sheet, not this file.
 //
-// Each link has:
-//   title:    text on the button
-//   url:      where it goes
-//   note:     (optional) one short line under the title
-//   category: which section it appears in (must match a name in CATEGORIES)
-//   audience: who it is for. Any of: 'students', 'seniors', 'families'.
-//             Leave it as [] to show it for everyone.
-//   featured: (optional) true pins it to the top, above the sections.
+// Sheet columns (row 1 is the header):
+//   Title     text on the button
+//   URL       where it goes
+//   Note      (optional) one short line under the title
+//   Section   heading it appears under; sections show in the order they
+//             first appear in the sheet
+//   Audience  any of: students, seniors, families (comma separated).
+//             Leave blank to show it for everyone.
+//   Featured  "yes" pins it to the top as a gold button
+//
+// The sheet must be shared as "Anyone with the link: Viewer".
+// If the sheet can't be reached, the page falls back to LINKS below.
 
+const SHEET_ID = '1p6e72QfuMFfYlLslbVAujN_AuVZ3s_MbItXK8FyXR64';
+
+// Fallback section order, used with LINKS below.
 const CATEGORIES = [
   'Get help',
   'Applying to college',
@@ -22,6 +30,7 @@ const AUDIENCES = [
   { id: 'families', label: 'Families' },
 ];
 
+// Fallback copy of the sheet, used only if it can't be loaded.
 const LINKS = [
   {
     title: 'Get college application support',

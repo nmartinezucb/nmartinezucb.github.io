@@ -4,7 +4,9 @@ The homepage for **mrmartinez.org**: a link-in-bio style page where students, se
 
 ## Changing the links
 
-Everything on the page comes from `links.js`. Add, remove, or edit an entry in `LINKS`, and pick its `category` (a section heading in `CATEGORIES`) and `audience` (`students`, `seniors`, `families`, or `[]` for everyone). Set `featured: true` to pin a link to the top as a gold button.
+The page reads its links from the Google Sheet **Homepage links** in the "Mr Martinez Web" Drive folder. Add a row and it shows up on the next page load. Columns: Title, URL, Note, Section, Audience (`students`, `seniors`, `families`, comma separated, blank for everyone), Featured (`yes` for a gold button at the top).
+
+The sheet must be shared as "Anyone with the link: Viewer". If it can't be loaded, the page falls back to the copy in `links.js`.
 
 ## Side projects
 
