@@ -1,1 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mr. Martinez | College Resources</title>
+  <meta name="description" content="College application help, financial aid links, and tools from Mr. Martinez (DCAC / EAOP).">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <main class="page">
+    <header class="profile">
+      <div class="logos">
+        <img src="logo/dcac-white.png" alt="DCAC">
+        <img src="logo/eaop-white.png" alt="EAOP">
+      </div>
+      <h1>Mr. Martinez</h1>
+      <p class="tagline">College advising resources, all in one place.</p>
+    </header>
+
+    <div class="controls">
+      <label class="search">
+        <span class="sr-only">Search resources</span>
+        <input id="search" type="search" placeholder="Search resources" autocomplete="off">
+      </label>
+      <div class="chips" id="chips" role="group" aria-label="Show resources for"></div>
+    </div>
+
+    <section id="featured" class="featured"></section>
+    <div id="sections"></div>
+    <p id="empty" class="empty" hidden>No resources match that search.</p>
+  </main>
+
+  <footer class="footer">mrmartinez.org</footer>
+
+  <script src="links.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { audience: 'all', query: '' };
+    let links = LINKS;
+    let categories = CATEGORIES;
+
+    try {
+      const saved = localStorage.getItem('audience');
+      if (AUDIENCES.some((a) => a.id === saved)) state.audience = saved;
+    } catch (e) { /* storage unavailable */ }
+
+    function el(tag, cls, text) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text) n.textContent = text;
+      return n;
+    }
+
+    function card(link) {
+      const a = el('a', 'link' + (link.featured ? ' link-featured' : ''));
+      a.href = link.url;
+      if (/^https?:/.test(link.url)) { a.target = '_blank'; a.rel = 'noopener'; }
+      a.appendChild(el('span', 'link-title', link.title));
+      if (link.note) a.appendChild(el('span', 'link-note', link.note));
+      return a;
+    }
+
+    function matches(link) {
+      const forAll = !link.audience || link.audience.length === 0;
+      if (state.audience !== 'all' && !forAll && !link.audience.includes(state.audience)) return false;
+      if (!state.query) return true;
+      const hay = (link.title + ' ' + (link.note || '') + ' ' + link.category).toLowerCase();
+      return state.query.split(/\s+/).every((w) => hay.includes(w));
+    }
+
+    function renderChips() {
+      const box = $('chips');
+      box.innerHTML = '';
+      AUDIENCES.forEach((a) => {
+        const b = el('button', 'chip', a.label);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(state.audience === a.id));
+        b.onclick = () => {
+          state.audience = a.id;
+          try { localStorage.setItem('audience', a.id); } catch (e) { }
+          renderChips();
+          render();
+        };
+        box.appendChild(b);
+      });
+    }
+
+    function render() {
+      const shown = links.filter(matches);
+      const featured = $('featured');
+      featured.innerHTML = '';
+      shown.filter((l) => l.featured).forEach((l) => featured.appendChild(card(l)));
+
+      const sections = $('sections');
+      sections.innerHTML = '';
+      categories.forEach((cat) => {
+        const items = shown.filter((l) => !l.featured && l.category === cat);
+        if (!items.length) return;
+        const s = el('section', 'group');
+        s.appendChild(el('h2', null, cat));
+        items.forEach((l) => s.appendChild(card(l)));
+        sections.appendChild(s);
+      });
+
+      $('empty').hidden = shown.length > 0;
+    }
+
+    $('search').addEventListener('input', (e) => {
+      state.query = e.target.value.trim().toLowerCase();
+      render();
+    });
+
+    // Minimal CSV parser (handles quoted fields, commas and newlines inside quotes).
+    function parseCSV(text) {
+      const rows = [];
+      let row = [], field = '', quoted = false;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (quoted) {
+          if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+          else if (c === '"') quoted = false;
+          else field += c;
+        } else if (c === '"') quoted = true;
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n' || c === '\r') {
+          if (c === '\r' && text[i + 1] === '\n') i++;
+          row.push(field); rows.push(row); row = []; field = '';
+        } else field += c;
+      }
+      if (field || row.length) { row.push(field); rows.push(row); }
+      return rows;
+    }
+
+    function fromSheet(text) {
+      const rows = parseCSV(text);
+      const header = (rows.shift() || []).map((h) => h.trim().toLowerCase());
+      const col = (name) => header.indexOf(name);
+      const get = (r, name) => (col(name) >= 0 ? (r[col(name)] || '').trim() : '');
+      const out = [];
+      rows.forEach((r) => {
+        const title = get(r, 'title'), url = get(r, 'url');
+        if (!title || !url) return;
+        out.push({
+          title,
+          url,
+          note: get(r, 'note'),
+          category: get(r, 'section') || 'More',
+          audience: get(r, 'audience').toLowerCase().split(/[,;]/).map((a) => a.trim()).filter(Boolean),
+          featured: /^(yes|y|true|x)$/i.test(get(r, 'featured')),
+        });
+      });
+      return out;
+    }
+
+    function useLinks(list) {
+      links = list;
+      categories = [...new Set(list.filter((l) => !l.featured).map((l) => l.category))];
+      render();
+    }
+
+    async function loadSheet() {
+      const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv';
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const text = await res.text();
+        if (/^\s*</.test(text)) throw new Error('Sheet is not shared publicly');
+        const list = fromSheet(text);
+        if (!list.length) throw new Error('Sheet has no rows');
+        useLinks(list);
+        try { localStorage.setItem('sheetCSV', text); } catch (e) { }
+      } catch (err) {
+        console.warn('Using built-in links:', err.message);
+      }
+    }
+
+    // Show the last copy of the sheet right away, then refresh it.
+    try {
+      const cached = localStorage.getItem('sheetCSV');
+      if (cached) { const list = fromSheet(cached); if (list.length) { links = list; categories = [...new Set(list.filter((l) => !l.featured).map((l) => l.category))]; } }
+    } catch (e) { }
+
+    renderChips();
+    render();
+    loadSheet();
+  </script>
+</body>
+
+</html>
