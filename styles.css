@@ -57,12 +57,16 @@ body {
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px 24px;
-  margin-bottom: 20px;
+  gap: 16px 32px;
+  width: min(760px, calc(100vw - 32px));
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 24px;
 }
 
 .logos img {
-  height: 40px;
+  height: 36px;
   width: auto;
   max-width: 100%;
 }
